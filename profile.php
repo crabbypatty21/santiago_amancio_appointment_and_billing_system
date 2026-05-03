@@ -12,7 +12,14 @@ $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
 $db   = getenv('DB_NAME') ?: 'finaldb';
 
-$conn = new mysqli($host, $user, $pass, $db);
+// Secure SSL Connection for TiDB Cloud
+$conn = mysqli_init();
+$conn->ssl_set(NULL, NULL, NULL, NULL, NULL);
+
+$port = getenv('DB_PORT') ?: 4000;
+
+// Connect with the MYSQLI_CLIENT_SSL flag
+$conn->real_connect($host, $user, $pass, $db, $port, NULL, MYSQLI_CLIENT_SSL);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
@@ -22,7 +29,7 @@ $user_id = $_SESSION['user_id'];
 
 // Fetch user email and patient details
 $stmt = $conn->prepare(
-    "SELECT u.email, p.first_name, p.last_name, p.date_of_birth, p.gender,contact_number, 
+    "SELECT u.email, p.first_name, p.last_name, p.date_of_birth, p.gender, p.contact_number, 
             p.city_province, p.municipality, p.barangay, p.street, p.house_no
      FROM user u
      INNER JOIN patient p ON u.user_id = p.user_id
@@ -30,7 +37,7 @@ $stmt = $conn->prepare(
 );
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
-$stmt->bind_result($email, $first_name, $last_name, $date_of_birth, $gender,$contact_number, $city_province, $municipality, $barangay, $street, $house_no);
+$stmt->bind_result($email, $first_name, $last_name, $date_of_birth, $gender, $contact_number, $city_province, $municipality, $barangay, $street, $house_no);
 $stmt->fetch();
 
 // Close the statement and connection

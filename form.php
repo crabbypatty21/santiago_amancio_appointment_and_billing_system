@@ -13,7 +13,14 @@ $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
 $db   = getenv('DB_NAME') ?: 'finaldb';
 
-$conn = new mysqli($host, $user, $pass, $db);
+// Secure SSL Connection for TiDB Cloud
+$conn = mysqli_init();
+$conn->ssl_set(NULL, NULL, NULL, NULL, NULL);
+
+$port = getenv('DB_PORT') ?: 4000;
+
+// Connect with the MYSQLI_CLIENT_SSL flag
+$conn->real_connect($host, $user, $pass, $db, $port, NULL, MYSQLI_CLIENT_SSL);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
@@ -51,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate required fields
     if ($patient_id && $service_id && $appointment_day && $start_time && $end_time) {
         // Insert the appointment into the database
+        // Note: Check if the table name is 'appointments' in your database!
         $stmt = $conn->prepare("
             INSERT INTO appointment
             (patient_id, service_id, appointment_day, start_time, end_time, fill_up_date)
@@ -60,26 +68,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($stmt->execute()) {
             $success_message = "Appointment booked successfully!";
-                // Fetch the service cost
-                $service_stmt = $conn->prepare("SELECT service_cost, service_name FROM services WHERE service_id = ?");
-                $service_stmt->bind_param("i", $service_id);
-                $service_stmt->execute();
-                $service_stmt->bind_result($service_cost, $service_name);
-                $service_stmt->fetch();
-                $service_stmt->close();
             
-                // Store data in session variables
-                $_SESSION['service_cost'] = $service_cost;
-                $_SESSION['service_name'] = $service_name;
-                $_SESSION['appointment_day'] = $appointment_day;
-                $_SESSION['start_time'] = $start_time;
-                $_SESSION['end_time'] = $end_time;
+            // Fetch the service cost
+            $service_stmt = $conn->prepare("SELECT service_cost, service_name FROM services WHERE service_id = ?");
+            $service_stmt->bind_param("i", $service_id);
+            $service_stmt->execute();
+            $service_stmt->bind_result($service_cost, $service_name);
+            $service_stmt->fetch();
+            $service_stmt->close();
             
-                header("Location: payment.php");
-                exit; // Make sure to exit after redirection
-            } else {
-                $error_message = "Error: " . $stmt->error;
-            }
+            // Store data in session variables
+            $_SESSION['service_cost'] = $service_cost;
+            $_SESSION['service_name'] = $service_name;
+            $_SESSION['appointment_day'] = $appointment_day;
+            $_SESSION['start_time'] = $start_time;
+            $_SESSION['end_time'] = $end_time;
+            
+            header("Location: payment.php");
+            exit; // Make sure to exit after redirection
+        } else {
+            $error_message = "Error: " . $stmt->error;
+        }
 
         $stmt->close();
     } else {
@@ -87,7 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$conn->close();
+// Leave the connection open for the HTML body to use the $result variable
+// (If there's HTML below this PHP block, remove $conn->close() here)
 ?>
 
 <!DOCTYPE html>

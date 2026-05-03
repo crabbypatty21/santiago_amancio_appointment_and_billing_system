@@ -12,7 +12,14 @@ $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
 $db   = getenv('DB_NAME') ?: 'finaldb';
 
-$conn = new mysqli($host, $user, $pass, $db);
+// Secure SSL Connection for TiDB Cloud
+$conn = mysqli_init();
+$conn->ssl_set(NULL, NULL, NULL, NULL, NULL);
+
+$port = getenv('DB_PORT') ?: 4000;
+
+// Connect with the MYSQLI_CLIENT_SSL flag
+$conn->real_connect($host, $user, $pass, $db, $port, NULL, MYSQLI_CLIENT_SSL);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
@@ -30,12 +37,9 @@ $end_time = $_SESSION['end_time'] ?? '';
 // Calculate down payment (20% of service cost)
 $down_payment = $service_cost * 0.20;
 
-// Clear session variables after use
-unset($_SESSION['service_cost'],$_SESSION['service_name'], $_SESSION['appointment_day'], $_SESSION['start_time'], $_SESSION['end_time']);
-
 // Fetch user email and patient details
 $stmt = $conn->prepare(
-    "SELECT u.email, p.first_name, p.last_name,p.contact_number, 
+    "SELECT u.email, p.first_name, p.last_name, p.contact_number, 
             p.city_province, p.municipality, p.barangay, p.street, p.house_no
      FROM user u
      INNER JOIN patient p ON u.user_id = p.user_id
@@ -43,7 +47,7 @@ $stmt = $conn->prepare(
 );
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
-$stmt->bind_result($email, $first_name, $last_name,$contact_number, $city_province, $municipality, $barangay, $street, $house_no);
+$stmt->bind_result($email, $first_name, $last_name, $contact_number, $city_province, $municipality, $barangay, $street, $house_no);
 $stmt->fetch();
 $stmt->close(); // Close this statement before opening a new one
 
@@ -62,19 +66,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             (appointment_id, total_amount, downpayment, payment_date)
             VALUES (?, ?, ?, ?)
         ");
-        // Fixed: changed $tot to $total_amount
+        
         $stmt->bind_param("isss", $appointment_id, $total_amount, $down_payment, $payment_date);
 
         if ($stmt->execute()) {
-            $success_message = "payment successful!";
+            // Clear session variables ONLY after successful payment
+            unset($_SESSION['service_cost'], $_SESSION['service_name'], $_SESSION['appointment_day'], $_SESSION['start_time'], $_SESSION['end_time']);
+            
+            $success_message = "Payment successful!";
             header("Location: conpay.php");
-            exit; // Added exit after redirect
+            exit; 
         }
         $stmt->close();
     }
 }
 
-$conn->close();
+// Leave the connection open if your HTML below needs it!
+// If there's no HTML below using $conn, you can uncomment the next line:
+// $conn->close();
 ?>
 
 <!DOCTYPE html>

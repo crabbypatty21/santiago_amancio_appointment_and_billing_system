@@ -7,7 +7,14 @@ $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
 $db   = getenv('DB_NAME') ?: 'finaldb';
 
-$conn = new mysqli($host, $user, $pass, $db);
+// Secure SSL Connection for TiDB Cloud
+$conn = mysqli_init();
+$conn->ssl_set(NULL, NULL, NULL, NULL, NULL);
+
+$port = getenv('DB_PORT') ?: 4000;
+
+// Connect with the MYSQLI_CLIENT_SSL flag
+$conn->real_connect($host, $user, $pass, $db, $port, NULL, MYSQLI_CLIENT_SSL);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
@@ -16,6 +23,7 @@ if ($conn->connect_error) {
 $date = $_GET['date'] ?? null;
 
 if ($date) {
+    // Note: If your table is named 'appointments', add an 's' to the query below!
     $stmt = $conn->prepare("
         SELECT start_time, end_time 
         FROM appointment 

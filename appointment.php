@@ -7,7 +7,14 @@ $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
 $db   = getenv('DB_NAME') ?: 'finaldb';
 
-$conn = new mysqli($host, $user, $pass, $db);
+// Secure SSL Connection for TiDB Cloud
+$conn = mysqli_init();
+$conn->ssl_set(NULL, NULL, NULL, NULL, NULL);
+
+$port = getenv('DB_PORT') ?: 4000;
+
+// Connect with the MYSQLI_CLIENT_SSL flag
+$conn->real_connect($host, $user, $pass, $db, $port, NULL, MYSQLI_CLIENT_SSL);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
@@ -34,6 +41,11 @@ if (strpos($search_query, 'p') === 0) {
 }
 
 $stmt = $conn->prepare($sql);
+
+if ($stmt === false) {
+    die("Database query error: " . $conn->error); // Added a quick error catch here just in case!
+}
+
 if (strpos($search_query, 'p') === 0 || strpos($search_query, 's') === 0) {
     // Bind the parameter only if searching by ID
     $id = (strpos($search_query, 'p') === 0) ? $patient_id : $service_id;

@@ -6,8 +6,13 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Database connection
-$conn = new mysqli('localhost', 'root', '', 'finaldb');
+// Database connection using Environment Variables with local XAMPP fallbacks
+$host = getenv('DB_HOST') ?: 'localhost';
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+$db   = getenv('DB_NAME') ?: 'finaldb';
+
+$conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
@@ -64,6 +69,7 @@ $conn->close();
         <h3>
             <?php echo "$first_name";?>
              <i class="fas fa-check-circle status-indicator"></i> <!-- Green check icon -->
+        </h3>
         <div class="status">
             <!-- Optional additional status info -->
         </div>

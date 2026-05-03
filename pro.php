@@ -6,8 +6,13 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Database connection
-$conn = new mysqli('localhost', 'root', '', 'finaldb');
+// Database connection using Environment Variables with local XAMPP fallbacks
+$host = getenv('DB_HOST') ?: 'localhost';
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+$db   = getenv('DB_NAME') ?: 'finaldb';
+
+$conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
@@ -32,7 +37,6 @@ $stmt->fetch();
 $stmt->close();
 $conn->close();
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -63,7 +67,7 @@ $conn->close();
 
     <div class="dashboard-container">
     <!-- Sidebar -->
-    <div class="sidebar">
+    <div class="sidebar" id="sidebar">
     <a href="index.php" class="back-button">
             <i class="fas fa-arrow-left"></i> Back
         </a>
@@ -114,6 +118,7 @@ $conn->close();
         * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
             font-family: 'Poppins', sans-serif;
         }
         body {
@@ -123,7 +128,6 @@ $conn->close();
             display: flex;
             height: 100vh;
             flex-direction: row;
-            align: center;
         }
         /* Main content section */
 .main-content {
@@ -218,7 +222,6 @@ $conn->close();
     border-radius: 50px;
     background-color: #007bff;
     transition: background-color 0.3s;
-    weight: 40px;
 }
 
 .back-button:hover {
@@ -228,6 +231,29 @@ $conn->close();
 .back-button i {
     margin-right: 10px;
 }
+
+.sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 250px;
+        height: 100%;
+        background-color: #00abf0;
+        color: #ecf0f1;
+        padding-top: 20px;
+        transition: left 0.3s ease;
+    }
+
+.hamburger-menu {
+    display: none;
+    cursor: pointer;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1000;
+    font-size: 24px;
+}
+
  /* Responsive Design */
  @media (max-width: 768px) {
             .sidebar {
@@ -284,6 +310,7 @@ $conn->close();
         left: -250px; /* Hide sidebar off-screen */
         position: absolute;
         transition: left 0.3s ease; /* Smooth transition */
+        z-index: 999;
     }
 
     .sidebar.show {

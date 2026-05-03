@@ -7,8 +7,14 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Database connection
-$conn = new mysqli('localhost', 'root', '', 'finaldb');
+// Database connection using Environment Variables with local XAMPP fallbacks
+$host = getenv('DB_HOST') ?: 'localhost';
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+$db   = getenv('DB_NAME') ?: 'finaldb';
+
+$conn = new mysqli($host, $user, $pass, $db);
+
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
@@ -240,7 +246,6 @@ if ($resultAppointments) {
 
     generateCalendar(currentMonth, currentYear);
 </script>
-
 
 <style>
     /* Additional styling for appointment buttons */

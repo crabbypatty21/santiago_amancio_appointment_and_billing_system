@@ -1,11 +1,17 @@
 <?php
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Database connection
-    $conn = new mysqli('localhost', 'root', '', 'finaldb');
+    // Database connection using Environment Variables with local XAMPP fallbacks
+    $host = getenv('DB_HOST') ?: 'localhost';
+    $user = getenv('DB_USER') ?: 'root';
+    $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+    $db   = getenv('DB_NAME') ?: 'finaldb';
+
+    $conn = new mysqli($host, $user, $pass, $db);
 
     if ($conn->connect_error) {
         die("Connection failed: " . $conn->connect_error);
     }
+
     // Collect form data
     $email = $_POST['email'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT); // Hash the password
@@ -29,18 +35,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Insert into patient table
         $stmt = $conn->prepare(
-            "INSERT INTO patient (user_id, first_name, last_name, date_of_birth, gender,contact_number, city_province, municipality, barangay, street, house_no) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)"
+            "INSERT INTO patient (user_id, first_name, last_name, date_of_birth, gender, contact_number, city_province, municipality, barangay, street, house_no) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         $stmt->bind_param(
             "issssssssss",
-            $user_id, $first_name, $last_name, $date_of_birth, $gender,$contact_number, 
+            $user_id, $first_name, $last_name, $date_of_birth, $gender, $contact_number, 
             $city_province, $municipality, $barangay, $street, $house_no
         );
 
         if ($stmt->execute()) {
             echo "Sign-up successful!";
-            header("location:login.php");
+            header("Location: login.php");
+            exit; // Added exit to ensure the script stops executing after redirect
         } else {
             echo "Error: " . $stmt->error;
         }

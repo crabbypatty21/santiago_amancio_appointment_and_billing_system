@@ -2,8 +2,13 @@
 session_start();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Database connection
-    $conn = new mysqli('localhost', 'root', '', 'finaldb');
+    // Database connection using Environment Variables with local XAMPP fallbacks
+    $host = getenv('DB_HOST') ?: 'localhost';
+    $user = getenv('DB_USER') ?: 'root';
+    $pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+    $db   = getenv('DB_NAME') ?: 'finaldb';
+
+    $conn = new mysqli($host, $user, $pass, $db);
 
     if ($conn->connect_error) {
         die("Connection failed: " . $conn->connect_error);
@@ -39,7 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,8 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Santiago-Amancio Dental Clinic - Log In</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    
-    
 </head>
 <body>
     <!-- Header Section -->
@@ -84,8 +86,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-btn">
                 <input type="submit" class="btn btn-primary" value="login" name="login">
             </div>
-            <p><a href= signup.php class="signup-link">Don't have an account? Sign Up</a></p>
-</div>
+            <p><a href="signup.php" class="signup-link">Don't have an account? Sign Up</a></p>
+            </div>
+            </form>
+        </div>
+    </div>
 <style>
     /* Reset styles */
     * {

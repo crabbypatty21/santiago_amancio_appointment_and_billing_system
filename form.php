@@ -1,23 +1,25 @@
 <?php
 session_start();
 
-
 // Redirect to login if the user is not logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
 
+// Database connection using Environment Variables with local XAMPP fallbacks
+$host = getenv('DB_HOST') ?: 'localhost';
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+$db   = getenv('DB_NAME') ?: 'finaldb';
 
-// Database connection
-$conn = new mysqli('localhost', 'root', '', 'finaldb');
+$conn = new mysqli($host, $user, $pass, $db);
+
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-
 $user_id = $_SESSION['user_id'];
-
 
 // Fetch user email and patient details
 $stmt = $conn->prepare(
@@ -28,18 +30,15 @@ $stmt = $conn->prepare(
      WHERE u.user_id = ?"
 );
 
-
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $stmt->bind_result($email, $patient_id, $first_name, $last_name, $date_of_birth, $gender, $contact_number, $city_province, $municipality, $barangay, $street, $house_no);
 $stmt->fetch();
 $stmt->close();
 
-
 // Fetch services for the dropdown
 $sql = "SELECT * FROM services";
 $result = $conn->query($sql);
-
 
 // Check if the form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -48,7 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $start_time = $_POST['start_time'] ?? null;
     $end_time = $_POST['end_time'] ?? null;
     $fill_up_date = date('Y-m-d H:i:s'); // Current timestamp
-
 
     // Validate required fields
     if ($patient_id && $service_id && $appointment_day && $start_time && $end_time) {
@@ -59,7 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             VALUES (?, ?, ?, ?, ?, ?)
         ");
         $stmt->bind_param("iissss", $patient_id, $service_id, $appointment_day, $start_time, $end_time, $fill_up_date);
-
 
         if ($stmt->execute()) {
             $success_message = "Appointment booked successfully!";
@@ -90,10 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-
 $conn->close();
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -123,13 +118,10 @@ $conn->close();
                 </div>
             </div>
 
-
-
             <!-- Profile Section -->
             <div class="profile-section">
             </div>
         </div>
-
 
         <!-- Main Content -->
         <div class="main-content">
@@ -141,7 +133,6 @@ $conn->close();
                         <p>0447 Santiago road St. Lambakin, Marilao Bulacan</p>
                     </div>
                 </div>
-
 
                 <form id="form" method="POST" action="form.php">
                     <!-- Personal Information -->
@@ -182,7 +173,6 @@ $conn->close();
                         <input type="text" class="form-control" id="fill_up_date" name="fill_up_date" readonly>
                     </div>
 
-
                     <!-- Service Selection -->
                     <div class="mb-3">
                     <label for="service_id">Select Service:</label>
@@ -195,9 +185,6 @@ $conn->close();
                     <?php endwhile; ?>
                     </select>
                     </div>
-
-
-
 
                     <!-- Appointment Details -->
                     <div class="mb-3">
@@ -213,9 +200,7 @@ $conn->close();
                         <input type="time" class="form-control" id="end_time" name="end_time" readonly/>
                     </div>
 
-
                     <button id="showCalendarButton" type="button">Show Calendar</button>
-
 
                     <!-- Calendar Popup -->
                     <div id="calendar">
@@ -237,14 +222,12 @@ $conn->close();
                         <button id="closeCalendar">Close</button>
                     </div>
 
-
                     <!-- Time Slot Popup -->
                     <div id="timeSlotPopup">
                         <h3>Select a Time Slot</h3>
                         <div id="timeSlots"></div>
                         <button id="closeTimeSlotPopup">Close</button>
                     </div>
-
 
                     <!-- Submit Appointment Button -->
                      <div>
@@ -276,9 +259,6 @@ $conn->close();
             </div>
         </div>
     </div>
-</body>
-</html>
-
 
     <script>
         function formatDateTo12Hour(date) {
@@ -288,19 +268,15 @@ $conn->close();
             const hour12 = hours % 12 || 12; // Converts to 12-hour format
             const minuteFormatted = minutes < 10 ? '0' + minutes : minutes; // Adds leading zero for single-digit minutes
 
-
             return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${hour12}:${minuteFormatted} ${ampm}`;
         }
-
 
         // Get current date and time
         const currentDate = new Date();
         const formattedDate = formatDateTo12Hour(currentDate);
 
-
         // Set the current date and time to the input field
         document.getElementById('fill_up_date').value = formattedDate;
-
 
         const calendar = document.getElementById('calendar');
         const calendarDays = document.getElementById('calendarDays');
@@ -315,7 +291,6 @@ $conn->close();
         const termsModal = document.getElementById('termsModal');
         const closeModal = document.getElementsByClassName('close')[0];
         const selectedService = document.getElementById('service_id').value;
-
 
         let currentDateObj = new Date(); // Default to the local timezone (browser timezone)
 let selectedDate = 0;
@@ -421,12 +396,10 @@ function renderCalendar(date) {
     // Extract service duration from the selected option (assuming it's stored as data attribute)
     selectedServiceDuration = parseInt(selectedOption.getAttribute('data-duration'));
 
-
     // Clear the previous selections
-    starttimeInput.value = '';
+    start_timeInput.value = '';
     document.getElementById('end_time').value = '';
     appointment_dayInput.value = ''; // Clear previously selected date
-
 
     // Re-render time slots based on the new service duration
     if (selectedDate) { // Check if a date is already selected
@@ -434,17 +407,14 @@ function renderCalendar(date) {
     }
 });
 
-
 // Modify renderTimeSlots function
 function renderTimeSlots() {
     const timeSlots = [];
     const openingHour = 13; // 1 PM
     const closingHour = 17; // 5 PM
 
-
     const now = new Date();
     const isToday = selectedDate.toDateString() === now.toDateString();
-
 
     for (let hour = openingHour; hour < closingHour; hour++) {
         for (let minute = 0; minute < 60; minute += selectedServiceDuration) {
@@ -456,10 +426,8 @@ function renderTimeSlots() {
         }
     }
 
-
     // Clear previous time slots
     timeSlotsContainer.innerHTML = '';
-
 
     // Display time slots
     timeSlots.forEach(slot => {
@@ -480,7 +448,6 @@ function renderTimeSlots() {
         timeSlotsContainer.appendChild(slotButton);
     });
 
-
     timeSlotPopup.style.display = 'block'; // Show time slot popup
 }
         termsCheckbox.addEventListener('change', function() {
@@ -491,13 +458,11 @@ function renderTimeSlots() {
             }
         });
 
-
         closeModal.addEventListener('click', function() {
             termsModal.style.display = 'none';
             termsCheckbox.checked = true; // Uncheck the checkbox when modal is closed
             submitButton.readonly = false; // Disable submit button
         });
-
 
         window.addEventListener('click', function(event) {
             if (event.target === termsModal) {
@@ -507,19 +472,16 @@ function renderTimeSlots() {
             }
         });
 
-
         submitButton.addEventListener('click', function() {
             if (termsCheckbox.checked) {
                 alert("appointment booked.");
             }
         });
 
-
         // Enable submit button when terms are accepted and both date and time are filled
         termsCheckbox.addEventListener('change', checkSubmitButtonState);
         appointment_dayInput.addEventListener('change', checkSubmitButtonState);
         start_timeInput.addEventListener('change', checkSubmitButtonState);
-
 
         function checkSubmitButtonState() {
             const isDateFilled = appointment_dayInput.value !== '';
@@ -527,9 +489,6 @@ function renderTimeSlots() {
             submitButton.readonly = !(isDateFilled && isTimeFilled && termsCheckbox.checked);
         }
     </script>
-
-
-
 
 <style>
     body {
@@ -593,7 +552,6 @@ function renderTimeSlots() {
     color: red;
     font-weight: bold;
 }
-
 
     #timeSlotPopup {
         display: none;
@@ -782,7 +740,6 @@ function renderTimeSlots() {
             background-color: #c82333;
         }
 
-
     /* Main content styles */
     .main-content {
         margin-left: 250px;
@@ -790,12 +747,10 @@ function renderTimeSlots() {
         width: 100%;
     }
 
-
     .header h2 {
         font-size: 32px;
         font-weight: 700;
     }
-
 
     /* Form container styles */
     .form-container {
@@ -806,7 +761,6 @@ function renderTimeSlots() {
         max-width: 600px;
         margin: 0 auto;
     }
-
 
     .form-header {
         background-color: #00abf0;
@@ -819,12 +773,10 @@ function renderTimeSlots() {
         gap: 10px;
     }
 
-
     .form-header img {
         height: 40px;
         width: auto;
     }
-
 
     .form-header h3 {
         font-family: 'times new roman', sans-serif;
@@ -834,7 +786,6 @@ function renderTimeSlots() {
         font-size: 28px;
     }
 
-
     .form-header p {
         font-family: 'times new roman', sans-serif;
         color: white;
@@ -842,7 +793,6 @@ function renderTimeSlots() {
         font-weight: 700;
         font-size: 16px;
     }
-
 
     .form-container input,
     .form-container select {
@@ -852,7 +802,6 @@ function renderTimeSlots() {
         border-radius: 10px;
         border: 1px solid #ccc;
     }
-
 
     .footer {
         text-align: center;
@@ -897,7 +846,6 @@ function renderTimeSlots() {
     display: block; /* Ensure it behaves like a block-level element */
     text-align: center; /* Align text in the center */
 }
-
 
 button[type="submit"]:hover {
     background-color: #007bff;
@@ -952,13 +900,11 @@ form .mb-3 {
     padding-left: 3px; /* Less space between columns */
 }
 
-
 form .mb-2 {
     margin-bottom: 3px; /* Tighter spacing between fields */
     padding-right: 3px; /* Less space between columns */
     padding-left: 3px; /* Less space between columns */
 }
-
 
 /* Adjust the input field height and padding for more compactness */
 form .form-control {
@@ -966,13 +912,11 @@ form .form-control {
     font-size: 13px; /* Slightly smaller font size for tighter alignment */
 }
 
-
 /* Adjust select fields */
 form .form-select {
     padding: 4px 6px; /* Reduced padding for select dropdown */
     font-size: 13px; /* Slightly smaller font for better alignment */
 }
-
 
 /* Adjust the labels */
 form .form-label {
@@ -980,24 +924,20 @@ form .form-label {
     margin-bottom: 2px; /* Minimal space between label and input */
 }
 
-
 /* Adjust column spacing */
 form .row {
     margin-bottom: 5px; /* Minimal space between rows */
 }
-
 
 form .col-md-6 {
     padding-right: 3px; /* Less space between columns */
     padding-left: 3px; /* Less space between columns */
 }
 
-
 /* Optional: Adjust the submit button margin */
 form .text-center button {
     margin-top: 8px; /* Minimal space above the button */
 }
-
 
 /* For small screens (optional, if needed) */
 @media (max-width: 768px) {
@@ -1019,11 +959,9 @@ form .text-center button {
     transition: background-color 0.3s;
 }
 
-
 .back-button:hover {
     background-color: #0056b3;
 }
-
 
 .back-button i {
     margin-right: 10px;
@@ -1033,7 +971,6 @@ form .text-center button {
     align-items: center;
     justify-content: flex-start; /* Align checkbox and label correctly */
 }
-
 
 .form-check-input {
     margin-right: 10px; /* Space between checkbox and label */
@@ -1046,24 +983,20 @@ form .text-center button {
     background-color: white;
 }
 
-
 .form-check-input:checked {
     background-color: #007bff;
     border-color: #007bff;
 }
-
 
 .form-check-label {
     font-size: 14px;
     color: #333;
 }
 
-
 .terms-link {
     color: #007bff;
     text-decoration: none;
 }
-
 
 .terms-link:hover {
     text-decoration: underline;
@@ -1077,17 +1010,14 @@ form .text-center button {
         box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Floating effect */
     }
 
-
     .modal-header {
         background-color: #4682B4; /* Steel Blue */
         color: #ffffff; /* White text */
     }
 
-
     .modal-body p {
         color: black; /* White font for paragraphs */
     }
-
 
     .modal-body h6 {
         font-weight: bold; /* Bold titles for each section */
@@ -1096,4 +1026,3 @@ form .text-center button {
     </style>
 </body>
 </html>
-

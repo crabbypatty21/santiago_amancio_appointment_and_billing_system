@@ -6,8 +6,13 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Database connection
-$conn = new mysqli('localhost', 'root', '', 'finaldb');
+// Database connection using Environment Variables with local XAMPP fallbacks
+$host = getenv('DB_HOST') ?: 'localhost';
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+$db   = getenv('DB_NAME') ?: 'finaldb';
+
+$conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
@@ -40,6 +45,7 @@ $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $stmt->bind_result($email, $first_name, $last_name,$contact_number, $city_province, $municipality, $barangay, $street, $house_no);
 $stmt->fetch();
+$stmt->close(); // Close this statement before opening a new one
 
 // Check if the form is submitted
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -47,7 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $total_amount = $_POST['service_cost'] ?? null;
     $downpayment = $_POST['downpayment'] ?? null;
     $payment_date = date('Y-m-d H:i:s'); // Current timestamp
-
 
     // Validate required fields
     if ($appointment_id && $service_cost && $down_payment && $payment_date) {
@@ -57,22 +62,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             (appointment_id, total_amount, downpayment, payment_date)
             VALUES (?, ?, ?, ?)
         ");
-        $stmt->bind_param("isss", $appointment_id, $tot, $down_payment, $payment_date);
-
+        // Fixed: changed $tot to $total_amount
+        $stmt->bind_param("isss", $appointment_id, $total_amount, $down_payment, $payment_date);
 
         if ($stmt->execute()) {
             $success_message = "payment successful!";
             header("Location: conpay.php");
+            exit; // Added exit after redirect
         }
+        $stmt->close();
     }
 }
 
-// Close the statement and connection
-$stmt->close();
-
 $conn->close();
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -82,7 +85,6 @@ $conn->close();
     <link rel="stylesheet" href="styles.css">
     <title>Payment Container</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-
 </head>
 <body>
 
@@ -96,6 +98,7 @@ $conn->close();
         </div>
         
         <div class="content">
+            <form action="payment.php" method="POST">
             <div>
                 <span class="patient-name-label" disabled>First name: </span>
                 <span id="display-patient-name" class="patient-info-value"><?php echo "$first_name"; ?></span>
@@ -112,28 +115,28 @@ $conn->close();
 
             <div>
                 <span class="patient-info-label">Appointment Day:</span>
-                <input type="text" class="form-control" id="appointment_day" name="appointment_day" value="<?= $appointment_day ?>" readonly>
+                <input type="text" class="form-control" id="appointment_day" name="appointment_day" value="<?= htmlspecialchars($appointment_day) ?>" readonly>
             </div>
             <div class="mb-3">
                 <label for="start_time" class="form-label">Start Time</label>
-                <input type="text" class="form-control" id="start_time" name="start_time" value="<?= $start_time ?>" readonly>
+                <input type="text" class="form-control" id="start_time" name="start_time" value="<?= htmlspecialchars($start_time) ?>" readonly>
             </div>
             <div class="mb-3">
                 <label for="end_time" class="form-label">End Time</label>
-                <input type="text" class="form-control" id="end_time" name="end_time" value="<?= $end_time ?>" readonly>
+                <input type="text" class="form-control" id="end_time" name="end_time" value="<?= htmlspecialchars($end_time) ?>" readonly>
             </div>
 
             <div>
                 <span class="patient-info-label">Requested Service:</span>
-                <input id="service_name" class="form-control" value="₱<?= $service_name ?>" readonly>
+                <input id="service_name" class="form-control" value="₱<?= htmlspecialchars($service_name) ?>" readonly>
             </div>
             <div class="total-amount">
             <span class="payment-label">Total Amount</span>
-            <input type="text" class="form-control" id="service_cost" name="service_cost" value="₱<?= number_format($service_cost, 2) ?>" readonly>
+            <input type="text" class="form-control" id="service_cost" name="service_cost" value="<?= number_format((float)$service_cost, 2, '.', '') ?>" readonly>
             </div>
             <div class="total-amount">
-            <span class="payment-label">Downpayment: <php value="₱<?= number_format($down_payment, 2) ?>" readonly ?></span>
-            <input type="text" class="form-control" id="down_payment" name="down_payment" value="₱<?= number_format($down_payment, 2) ?>" readonly>
+            <span class="payment-label">Downpayment:</span>
+            <input type="text" class="form-control" id="down_payment" name="downpayment" value="<?= number_format((float)$down_payment, 2, '.', '') ?>" readonly>
             </div>
             <span>Payment Date</span>
             <input type="text" id="dateField" name="payment_date" disabled>
@@ -146,32 +149,30 @@ $conn->close();
             </div>
             
             
-            <button class="submit-button" id="pay-button" onclick="redirectToPayment()">Pay</button>
-            <button class="back-button" onclick="goBack()">Back</button>
+            <button type="submit" class="submit-button" id="pay-button" onclick="redirectToPayment()">Pay</button>
+            <button type="button" class="back-button" onclick="goBack()">Back</button>
             <div id="loading-message" class="loading">Processing your payment, please wait...</div>
 
             <script>
                 function redirectToPayment() {
                     document.getElementById('loading-message').style.display = 'block'; // Show loading message
-                    setTimeout(function() {
-                        window.location.href = 'conpay.php'; // Redirects to confay.php after 3 seconds
-                    }, 3000);
+                    // Let the form submit normally, remove the setTimeout redirect so PHP can process the INSERT
                 }
 
                 function goBack() {
                     window.location.href = 'form.php'; // Redirects to form.php
                 }
-        function displayCurrentDate() {
-            const dateField = document.getElementById('dateField');
-            const currentDate = new Date();
-            const formattedDate = currentDate.toLocaleDateString(); // Format the date as needed
-            dateField.value = formattedDate; // Set the value of the text field
-        }
+                function displayCurrentDate() {
+                    const dateField = document.getElementById('dateField');
+                    const currentDate = new Date();
+                    const formattedDate = currentDate.toLocaleDateString(); // Format the date as needed
+                    dateField.value = formattedDate; // Set the value of the text field
+                }
 
-        window.onload = displayCurrentDate; // Call the function when the page loads
+                window.onload = displayCurrentDate; // Call the function when the page loads
             </script>
+            </form>
         </div>
-        </form>
     </div>
 
     <style>

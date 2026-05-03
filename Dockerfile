@@ -1,11 +1,15 @@
-# Use the official PHP image with Apache
 FROM php:8.2-apache
 
-# Install the MySQL extensions PHP needs to talk to the database
+# Install MySQL extensions
 RUN docker-php-ext-install mysqli pdo pdo_mysql
 
-# Copy your project files into the container's web directory
+# Enable Apache mod_rewrite (helps with navigation/routing)
+RUN a2enmod rewrite
+
+# Copy project files
 COPY . /var/www/html/
 
-# Expose port 80 for Render
+# Set permissions so Apache can read your files
+RUN chown -R www-data:www-data /var/www/html
+
 EXPOSE 80
